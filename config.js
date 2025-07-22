@@ -53,6 +53,7 @@ const emailConfig = {
  */
 function validateConfiguration() {
   const errors = [];
+  const warnings = [];
 
   // Validar configuración del servidor
   if (!serverConfig.jwtSecret) {
@@ -63,27 +64,35 @@ function validateConfiguration() {
     errors.push('JWT_SECRET debe tener al menos 32 caracteres');
   }
 
-  // Validar configuración de email
+  // Validar configuración de email (solo warnings en producción)
   if (!emailConfig.host) {
-    errors.push('EMAIL_HOST es requerido');
+    warnings.push('EMAIL_HOST no configurado - funcionalidad de email deshabilitada');
   }
 
-  // Validar credenciales por restaurante
+  // Validar credenciales por restaurante (solo warnings, no errores críticos)
   Object.entries(emailConfig.restaurants).forEach(([restaurant, config]) => {
     if (!config.user) {
-      errors.push(`EMAIL_${restaurant.toUpperCase()}_USER es requerido`);
+      warnings.push(`EMAIL_${restaurant.toUpperCase()}_USER no configurado - email deshabilitado para ${restaurant}`);
     }
     
     if (!config.pass) {
-      errors.push(`EMAIL_${restaurant.toUpperCase()}_PASS es requerido`);
+      warnings.push(`EMAIL_${restaurant.toUpperCase()}_PASS no configurado - email deshabilitado para ${restaurant}`);
     }
     
-    // En producción, verificar que no sean valores por defecto
+    // En producción, advertir sobre valores por defecto
     if (serverConfig.isProduction && config.pass === 'CAMBIAR_EN_PRODUCCION') {
-      errors.push(`EMAIL_${restaurant.toUpperCase()}_PASS debe cambiarse en producción`);
+      warnings.push(`EMAIL_${restaurant.toUpperCase()}_PASS está usando valor por defecto`);
     }
   });
 
+  // Mostrar warnings si los hay
+  if (warnings.length > 0) {
+    console.warn('⚠️ Advertencias de configuración:');
+    warnings.forEach(warning => console.warn(`- ${warning}`));
+    console.warn('📧 Las funciones de email estarán deshabilitadas');
+  }
+
+  // Solo lanzar error si hay errores críticos
   if (errors.length > 0) {
     throw new ConfigurationError(`Errores de configuración:\n${errors.map(e => `- ${e}`).join('\n')}`);
   }
